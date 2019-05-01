@@ -1,6 +1,8 @@
 var routes = require('express').Router();
 var airPortDao = require('../dao/AirportDao');
 var flightDao = require('../dao/FlightDao');
+var bookingDao = require('../dao/BookingDao');
+var admin = { "userId": 1 };
 
 
 routes.get('/airports/:airport_name',function(req,res){
@@ -34,5 +36,23 @@ routes.put('/flights', function(req, res){
   });
 
 });
+
+
+routes.delete('/booking/:bookingId', function (req, res) {
+  console.log("cancelBooking");
+
+  bookingDao.cancelbooking(req.params.bookingId, function (error, result) {
+    if (error) {
+      throw error;
+      res.status(500);
+      res.send("Failed to cancel the booking.");
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200);
+      res.send(result);
+    }
+  })
+});
+
 
 module.exports = routes;
