@@ -4,7 +4,7 @@ var flightDao = require('../dao/FlightDao');
 var bookingDao = require('../dao/BookingDao');
 var admin = { "userId": 1 };
 
-
+// get airport list
 routes.get('/airports/:airport_name', function (req, res) {
   airPortDao.getAirportListByName(req.params.airport_name, function (error, result) {
     if (error) throw error;
@@ -13,7 +13,7 @@ routes.get('/airports/:airport_name', function (req, res) {
   });
 });
 
-
+// get flight list
 routes.get('/flights/:date/:depAirportId/:arrAirportId', function (req, res) {
   flightDao.getFlightList(req.params.date, req.params.depAirportId, req.params.arrAirportId, function (error, result) {
     if (error) throw error;
@@ -22,7 +22,7 @@ routes.get('/flights/:date/:depAirportId/:arrAirportId', function (req, res) {
   });
 });
 
-
+// dercrease flight capacity
 routes.put('/flights', function (req, res) {
   var data = req.body;
   flightDao.decreaseFlightCapacity(data, function (err, result) {
@@ -31,12 +31,30 @@ routes.put('/flights', function (req, res) {
       res.send('Update flights Failed!');
     } else {
       res.status(201);
-      res.send('Update Author Successful!');
+      res.send('Decrease flight capacity Successful!');
     }
   });
 
 });
 
+
+// create booking
+routes.post('/booking', function (req, res) {
+  var data = req.body;
+  bookingDao.createbooking(data, function (err, result) {
+    if (err) {
+      res.status(500);
+      res.send('Failed to create booking');
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200);
+      res.send(result); // booking
+    }
+  });
+
+});
+
+// change booking
 
 // read booking
 routes.get('/booking/:confirmationNum', function (req, res) {
