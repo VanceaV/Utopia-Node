@@ -142,77 +142,80 @@ exports.createbooking = function (data, cb) {
 };
 
 // Read Booking
-exports.readBooking = function (confirmationNum, cb) {
+exports.readBooking = function (confirmationNum) {
     // read booking
-    var query1 = "Select * from booking where confirmation_num = ?";
-    db.query(query1, [confirmationNum], function (err, result1, fields) {
-        if (err) {
-            db.rollback(function () {
-                throw err;
-            });
-        }
-        var booking = result1[0];
-
-        var query2 = "Select * from user where user_id = ?"
-        db.query(query2, [booking.user_id], function (err, result2, fields) {
+    return new Promise(function(resolve, reject){
+        var query1 = "Select * from booking where confirmation_num = ?";
+        db.query(query1, [confirmationNum], function (err, result1, fields) {
             if (err) {
                 db.rollback(function () {
-                    throw err;
+                    reject(err);
                 });
             }
-
-            booking.user = result2[0];
-            delete booking.user_id;
-
-            // search for tickets under this booking
-            var query3 = "Select * from ticket where booking_id = ?"
-            db.query(query3, [booking.booking_id], function (err, result3, fields) {
+            var booking = result1[0];
+    
+            var query2 = "Select * from user where user_id = ?";
+            db.query(query2, [booking.user_id], function (err, result2, fields) {
                 if (err) {
                     db.rollback(function () {
-                        throw err;
+                        reject(err);
                     });
                 }
-
-                // add traveler and flight info into tickets
-                var tickets = result3;
-                for (i = 0; i < tickets.length; i++) {
-                    var ticketInfo = tickets[i];
-                    var query4 = "Select * from flight where flight_id = ?"
-                    db.query(query4, [ticketInfo.flight_id], function (err, result4, fields) {
-                        if (err) {
-                            db.rollback(function () {
-                                throw err;
-                            });
-                        }
-                        ticketInfo.flight = result4[0];
-                        delete ticketInfo.flight_id;
-
-                        var query3 = "Select * from user where user_id = ?"
-                        db.query(query3, [ticketInfo.user_id], function (err, result3, fields) {
+    
+                booking.user = result2[0];
+                delete booking.user_id;
+    
+                // search for tickets under this booking
+                var query3 = "Select * from ticket where booking_id = ?";
+                db.query(query3, [booking.booking_id], function (err, result3, fields) {
+                    if (err) {
+                        db.rollback(function () {
+                            reject(err);
+                        });
+                    }
+    
+                    // add traveler and flight info into tickets
+                    var tickets = result3;
+                    for (var i = 0; i < tickets.length; i++) {
+                        console.log("I: " +i);
+                        var ticketInfo = tickets[i];
+                        var query4 = "Select * from flight where flight_id = ?";
+                        db.query(query4, [ticketInfo.flight_id], function (err, result4, fields) {
                             if (err) {
                                 db.rollback(function () {
-                                    throw err;
+                                    reject(err);
                                 });
                             }
-                            ticketInfo.user = result3[0];
-                            delete ticketInfo.user_id;
-                            tickets[i] = ticketInfo;
+                            ticketInfo.flight = result4[0];
+                            delete ticketInfo.flight_id;
 
-                            if (i == tickets.length - 1) {
-                                // assign tickets info into booking
-                                delete booking.age;
-                                booking.ticket = tickets;
-                                db.end();
-                                console.log(booking);
-                                cb(err, booking, fields);
-                            }
+                            var query5 = "Select * from user where user_id = ?";
+                            db.query(query5, [ticketInfo.user_id], function (err, result5, fields) {
+                                if (err) {
+                                    db.rollback(function () {
+                                        reject(err);
+                                    });
+                                }
+                                ticketInfo.user = result5[0];
+                                delete ticketInfo.user_id;
+                                tickets[i] = ticketInfo;
+
+                            });
                         });
+                    }
+                    console.log("A");
+                    db.commit(function(err, result){
+                        if(err)  {reject("error");}
+                        console.log("B");
+                        delete booking.age;
+                        booking.ticket = tickets;
+                        resolve(booking);
                     });
-                }
+                });
             });
         });
     });
-}
+};
 
 // Cancel Booking
 exports.cancelbooking = function (bookingId, cb) {

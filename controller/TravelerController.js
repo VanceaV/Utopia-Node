@@ -59,21 +59,34 @@ routes.post('/booking', function (req, res) {
 // read booking
 routes.get('/booking/:confirmationNum', function (req, res) {
   var confirmationNum = req.params.confirmationNum;
-  console.log("read booking: " + req.params.confirmationNum);
-  bookingDao.readBooking(confirmationNum, function (error, result) {
-    if (error) {
-      throw error;
-      res.status(500);
-      res.send("Failed to read booking by confirmation number.");
-    } else if (result == null) {
-      res.status(404);
-      res.send("No record for confirmation number: " + confirmationNum);
-    } else {
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200);
-      res.send(result);
-    }
-  })
+  if (req.params.confirmationNum) {
+    bookingDao.readBooking(req.params.confirmationNum)
+      .then(result => {
+        console.log(result);
+        res.setHeader('Content-Type', 'application/json');
+        res.status(200);
+        res.send(result); // booking
+      }).catch(err => {
+        console.log(err);
+      });
+  } else {
+    return { statusCode: 400, message: "Bad Request" };
+  }
+
+  // bookingDao.readBooking(confirmationNum, function (error, result) {
+  //   if (error) {
+  //     throw error;
+  //     res.status(500);
+  //     res.send("Failed to read booking by confirmation number.");
+  //   } else if (result == null) {
+  //     res.status(404);
+  //     res.send("No record for confirmation number: " + confirmationNum);
+  //   } else {
+  //     res.setHeader('Content-Type', 'application/json');
+  //     res.status(200);
+  //     res.send(result);
+  //   }
+  // })
 });
 
 
