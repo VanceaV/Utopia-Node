@@ -1,94 +1,78 @@
 var db = require('./Db');
-var mysql = require('mysql');
-
+var travelerDao = require('./TravelerDao');
+var flightDao = require('./FlightDao');
+var paymentDao = require('./PaymentDao');
 const adminId = 1;
 const date = new Date();
 
 
-// Read Booking
+// Save Booking
+exports.save = function(booking){
+    return  new Promise((resolve,reject)=>{
+        var query = "INSERT INTO booking (confirmation_num, create_date, orderSubmit, create_by, user_id)"
+                + " VALUES (?,?, ?, ?,?)";
+        db.query(query,[booking.confirmation_num, booking.create_date, booking.orderSubmit, booking.user.user_id, booking.user.user_id],
+            function(err, res){
 
-
+                if(err){
+                    db.rollback(function(err, res){
+                    reject(err);
+                    });
+                }
+                booking.booking_id = res.insertId;
+                resolve(booking);
+        });
+    });
+}
 
 // Cancel Booking
-exports.cancelbooking = function (bookingId, cb) {
-    var travelerNum = 0;
-    console.log("cancelBooking");
-    /* Begin transaction */
-    db.beginTransaction(function (err) {
-        if (err) { throw err; }
+exports.cancelbooking = function (bookingId) {
 
-        // get the number of travlers under this booking
-        var query1 = "Select * from user where user_id in " +
-            "(SELECT user_id from ticket where booking_id = ? group by user_id)";
-        db.query(query1, [bookingId], function (err, result1) {
-            if (err) {
-                db.rollback(function () {
-                    throw err;
-                });
-            }
-            // number of travlers
-            var travelerNum = result1.length;
-            console.log(travelerNum);
+    return new Promise ((resolve,reject)=>{
 
-            // get flights from the booking
-            var query2 = "Select * from flight where flight_id in "
-                + "(SELECT flight_id FROM ticket where booking_id = ? Group by flight_id)"
-            db.query(query2, [bookingId], function (err, result2) {
-                if (err) {
-                    db.rollback(function () {
-                        throw err;
-                    });
-                }
-                // list of a flight
-                var flights = result2;
-                console.log(flights);
+        db.beginTransaction(function (err) {
+            if (err) { reject(err) }
 
-                // increase the capacity of flights
-                for (i = 0; i < flights.length; i++) {
-                    query3 = "update flight f set f.capacity = f.capacity + ?, update_by =?, "
-                        + "update_date = ?  where f.flight_id = ?";
-                    db.query(query3, [travelerNum, adminId, date, flights[i].flight_id], function (err, result, fields) {
-                        if (err) {
-                            db.rollback(function () {
-                                throw err;
-                            });
-                        }
-                    });
-                    console.log(flights[i].flightId);
-                }
-
-                // set booking to false
-                var query4 = "update booking set orderSubmit = false, update_date = ?, update_by = ? "
-                    + "where booking_id = ?"
-                db.query(query4, [date, adminId, bookingId], function (err, result2) {
-                    if (err) {
-                        db.rollback(function () {
-                            throw err;
-                        });
-                    }
-
-                    // set payment to false
-                    var query5 = "update payment set payment_status = false, update_date = ?, update_by = ? "
-                        + "where bookingId = ?"
-                    db.query(query4, [date, adminId, bookingId], function (err, result2) {
-                        if (err) {
-                            db.rollback(function () {
-                                throw err;
-                            });
-                        }
-
+            travelerDao.getNumberOfTravelersForABooking(bookingId).then(function(res){
+                var travelerNum = res.length;
+                flightDao.getFlightListFromBooking(bookingId).then(function(res){
+                    var flights = res;
+                    for (var i = 0; i < flights.length; i++) {
+                        flightDao.increaseCapacityOfFlights(travelerNum,adminId,date,flights[i].flight_id);
+                    }    
+                })
+                setBookingTofalse(bookingId).then(function(resolver){
+                    paymentDao.setPaymentToFalse(date, adminId, bookingId).then(function(res){
                         db.commit(function (err) {
                             if (err) {
                                 db.rollback(function () {
                                     throw err;
                                 });
                             }
-                            console.log('Transaction Complete.');
                             db.end();
+                            resolve("'Transaction Complete.'")
                         });
-                    });
-                });
-            });
+                    })
+                })
+            })
         });
     });
-};
+}
+
+
+setBookingTofalse = function (bookingId) {
+
+    return new Promise ((resolve,reject)=>{
+        var query = "update booking set orderSubmit = false, update_date = ?, update_by = ? "
+                    + "where booking_id = ?"
+        db.query(query,[date, adminId, bookingId], function (err, result) {
+
+            if(err){
+                reject(err)
+            }else{
+                resolve(result)
+            } 
+        });
+    }); 
+}
+   
